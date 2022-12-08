@@ -10,7 +10,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--npy_path', type=str, default='/raid/asap7772/epic100/output/epic100_train_dict.npy')
 parser.add_argument('--path_to_frames', type=str, default='/raid/asap7772/epic100/frames')
 parser.add_argument('--output_path', type=str, default='/raid/asap7772/epic100/epic100_bridgeform')
-parser.add_argument('--num_workers', type=int, default=16)
+parser.add_argument('--parallel', type=int, default=1)
+parser.add_argument('--num_workers', type=int, default=32)
 parser.add_argument('--train', type=int, default=1)
 args = parser.parse_args()
 
@@ -19,6 +20,18 @@ desired_keys = ['observations', 'next_observations', 'actions', 'rewards', 'term
 data = np.load(args.npy_path, allow_pickle=True).item()
 
 tasks = list(data.keys())
+
+
+def center_crop_pil(img, new_width, new_height):
+    width, height = img.size
+    left = (width - new_width) / 2
+    top = (height - new_height) / 2
+    right = (width + new_width) / 2
+    bottom = (height + new_height) / 2
+    return img.crop((left, top, right, bottom))
+
+def resize_pil(img, new_width, new_height):
+    return img.resize((new_width, new_height), Image.Resampling.BICUBIC)
 
 def process_task(task):
     print('Processing task', task)
@@ -40,7 +53,12 @@ def process_task(task):
         all_aux_data = []
         # frame_path is a jpg file
         for frame_path in frame_paths:
-            frame = np.array(Image.open(frame_path))
+            pil_image = Image.open(frame_path)
+            pil_image = center_crop_pil(pil_image, 256, 256)
+            pil_image = resize_pil(pil_image, 128, 128)
+            
+            frame = np.array(pil_image)
+            assert frame.shape == (128, 128, 3)
             
             obs_dict = {
                 'images0': frame,
@@ -76,5 +94,9 @@ def process_task(task):
 
 print('Processing', len(tasks), 'tasks')
 
-with Pool(args.num_workers) as p:
-    p.map(process_task, tasks)
+if args.parallel:
+    with Pool(args.num_workers) as p:
+        p.map(process_task, tasks)
+else:
+    for task in tasks:
+        process_task(task)

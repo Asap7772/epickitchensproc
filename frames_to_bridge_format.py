@@ -12,7 +12,7 @@ parser.add_argument('--path_to_frames', type=str, default='/raid/asap7772/epic10
 parser.add_argument('--output_path', type=str, default='/raid/asap7772/epic100/epic100_bridgeform')
 parser.add_argument('--parallel', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=32)
-parser.add_argument('--train', type=int, default=1)
+parser.add_argument('--split', type=float, default=0.9)
 args = parser.parse_args()
 
 desired_keys = ['observations', 'next_observations', 'actions', 'rewards', 'terminals', 'aux_data']
@@ -39,12 +39,16 @@ def process_task(task):
     # create a numpy file for each task
     output_dict = {k: [] for k in desired_keys}
     output_rew = []
-    sub_folder = 'train' if args.train else 'val'
+    
+    folder_path = os.path.join(args.output_path, task, 'train')
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path, exist_ok=True)
+    
+    folder_path = os.path.join(args.output_path, task, 'val')
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path, exist_ok=True)
     
     for frame_paths, aux_data in tqdm.tqdm(data[task]):
-        folder_path = os.path.join(args.output_path, task, sub_folder)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path, exist_ok=True)
     
         all_observations = []
         all_actions = []
@@ -84,13 +88,16 @@ def process_task(task):
         output_dict['aux_data'].append(aux_data)
         output_rew.append(rewards)
 
-    output_path = os.path.join(args.output_path, task, sub_folder, 'out.npy')
-    output_path_rew = os.path.join(args.output_path, task, sub_folder, 'out_rew.npy')
+    train_output_dict = {k: output_dict[k][:int(len(output_dict[k])*args.split)] for k in desired_keys}
+    val_output_dict = {k: output_dict[k][int(len(output_dict[k])*args.split):] for k in desired_keys}
+    train_rew = output_rew[:int(len(output_rew)*args.split)]
+    val_rew = output_rew[int(len(output_rew)*args.split):]
     
-    np.save(output_path, output_dict)
-    np.save(output_path_rew, output_rew)
-    
-    print('Saved to', output_path)
+    np.save(os.path.join(args.output_path, task, 'train', 'out.npy'), train_output_dict)
+    np.save(os.path.join(args.output_path, task, 'val', 'out.npy'), val_output_dict)
+    np.save(os.path.join(args.output_path, task, 'train', 'out_rew.npy'), train_rew)
+    np.save(os.path.join(args.output_path, task, 'val', 'out_rew.npy'), val_rew)
+
 
 print('Processing', len(tasks), 'tasks')
 

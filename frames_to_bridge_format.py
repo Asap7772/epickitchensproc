@@ -17,6 +17,10 @@ parser.add_argument('--num_workers', type=int, default=32)
 parser.add_argument('--split', type=float, default=0.9)
 args = parser.parse_args()
 
+if os.path.exists(args.output_path):
+    print('Output path already exists. Removing.')
+    os.system('rm -rf {}'.format(args.output_path))
+
 desired_keys = ['observations', 'next_observations', 'actions', 'rewards', 'terminals', 'aux_data']
 
 data = np.load(args.npy_path, allow_pickle=True).item()
@@ -110,9 +114,9 @@ def process_task(task):
     val_rew = output_rew[int(len(output_rew)*args.split):]
     
     np.save(os.path.join(task_path, 'train', 'out.npy'), train_output_dict)
-    np.save(os.path.join(task_path, 'train', 'out.npy'), val_output_dict)
+    np.save(os.path.join(task_path, 'val', 'out.npy'), val_output_dict)
     np.save(os.path.join(task_path, 'train', 'out_rew.npy'), train_rew)
-    np.save(os.path.join(task_path, 'train', 'out_rew.npy'), val_rew)
+    np.save(os.path.join(task_path, 'val', 'out_rew.npy'), val_rew)
 
 
 print('Processing', len(tasks), 'tasks')

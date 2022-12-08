@@ -21,7 +21,7 @@ if os.path.exists(args.output_path):
     print('Output path already exists. Removing.')
     os.system('rm -rf {}'.format(args.output_path))
 
-desired_keys = ['observations', 'next_observations', 'actions', 'rewards', 'terminals', 'aux_data']
+desired_keys = ['observations', 'next_observations', 'actions', 'rewards', 'terminals']
 
 data = np.load(args.npy_path, allow_pickle=True).item()
 tasks = list(data.keys())
@@ -74,7 +74,6 @@ def process_task(task):
         all_actions = []
         all_rewards = []
         all_terminals = []
-        all_aux_data = []
         # frame_path is a jpg file
         for frame_path in frame_paths:
             pil_image = Image.open(frame_path)
@@ -95,17 +94,15 @@ def process_task(task):
             all_actions.append(np.zeros(7))
             all_rewards.append(-1.0)
             all_terminals.append(0)
-            all_aux_data.append(aux_data)
         
         observations, next_observations = all_observations[:-1], all_observations[1:]
-        actions, rewards, terminals, aux_data = all_actions[:-1], all_rewards[:-1], all_terminals[:-1], all_aux_data[:-1]
+        actions, rewards, terminals = all_actions[:-1], all_rewards[:-1], all_terminals[:-1]
         
         output_dict['observations'].append(observations)
         output_dict['next_observations'].append(next_observations)
         output_dict['actions'].append(actions)
         output_dict['rewards'].append(rewards)
         output_dict['terminals'].append(terminals)
-        output_dict['aux_data'].append(aux_data)
         output_rew.append(rewards)
 
     train_output_dict = {k: output_dict[k][:int(len(output_dict[k])*args.split)] for k in desired_keys}

@@ -5,11 +5,13 @@ import tqdm
 from multiprocessing import Pool, Manager
 import argparse
 from PIL import Image
+import csv
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--npy_path', type=str, default='/raid/asap7772/epic100/output/epic100_train_dict.npy')
 parser.add_argument('--path_to_frames', type=str, default='/raid/asap7772/epic100/frames')
 parser.add_argument('--output_path', type=str, default='/raid/asap7772/epic100/epic100_bridgeform')
+parser.add_argument('--domain_name', type=str, default='epic100')
 parser.add_argument('--parallel', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=32)
 parser.add_argument('--split', type=float, default=0.9)
@@ -18,9 +20,21 @@ args = parser.parse_args()
 desired_keys = ['observations', 'next_observations', 'actions', 'rewards', 'terminals', 'aux_data']
 
 data = np.load(args.npy_path, allow_pickle=True).item()
-
 tasks = list(data.keys())
 
+def make_dataset_summary(data):
+    os.makedirs(args.output_path, exist_ok=True)
+    file_path = os.path.join(args.output_path, 'dataset_summary.csv')
+    tasks = list(data.keys())
+    
+    header = ['task number','entity', 'domain','task','number of demos']
+    with open(file_path, 'w+') as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        for i, task in enumerate(sorted(tasks)):
+            row = [i, 'berkeley', args.domain_name, task, len(data[task])]
+            writer.writerow(row)
+make_dataset_summary(data)
 
 def center_crop_pil(img, new_width, new_height):
     width, height = img.size
@@ -40,11 +54,13 @@ def process_task(task):
     output_dict = {k: [] for k in desired_keys}
     output_rew = []
     
-    folder_path = os.path.join(args.output_path, task, 'train')
+    task_path = os.path.join(args.output_path, args.domain_name, task)
+    
+    folder_path = os.path.join(task_path, 'train')
     if not os.path.exists(folder_path):
         os.makedirs(folder_path, exist_ok=True)
     
-    folder_path = os.path.join(args.output_path, task, 'val')
+    folder_path = os.path.join(task_path, 'val')
     if not os.path.exists(folder_path):
         os.makedirs(folder_path, exist_ok=True)
     
@@ -93,10 +109,10 @@ def process_task(task):
     train_rew = output_rew[:int(len(output_rew)*args.split)]
     val_rew = output_rew[int(len(output_rew)*args.split):]
     
-    np.save(os.path.join(args.output_path, task, 'train', 'out.npy'), train_output_dict)
-    np.save(os.path.join(args.output_path, task, 'val', 'out.npy'), val_output_dict)
-    np.save(os.path.join(args.output_path, task, 'train', 'out_rew.npy'), train_rew)
-    np.save(os.path.join(args.output_path, task, 'val', 'out_rew.npy'), val_rew)
+    np.save(os.path.join(task_path, 'train', 'out.npy'), train_output_dict)
+    np.save(os.path.join(task_path, 'train', 'out.npy'), val_output_dict)
+    np.save(os.path.join(task_path, 'train', 'out_rew.npy'), train_rew)
+    np.save(os.path.join(task_path, 'train', 'out_rew.npy'), val_rew)
 
 
 print('Processing', len(tasks), 'tasks')

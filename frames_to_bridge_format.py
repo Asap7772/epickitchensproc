@@ -55,8 +55,8 @@ def process_task(task):
     print('Processing task', task)
     # one task is a list of (frame_paths, aux_data)
     # create a numpy file for each task
-    output_dict = {k: [] for k in desired_keys}
-    output_rew = []
+    output_lists = list()
+    output_rew = list()
     
     task_path = os.path.join(args.output_path, args.domain_name, task)
     
@@ -98,23 +98,26 @@ def process_task(task):
         observations, next_observations = all_observations[:-1], all_observations[1:]
         actions, rewards, terminals = all_actions[:-1], all_rewards[:-1], all_terminals[:-1]
         
-        output_dict['observations'].append(observations)
-        output_dict['next_observations'].append(next_observations)
-        output_dict['actions'].append(actions)
-        output_dict['rewards'].append(rewards)
-        output_dict['terminals'].append(terminals)
+        output_lists.append(dict(
+            observations=observations,
+            next_observations=next_observations,
+            actions=actions,
+            rewards=rewards,
+            terminals=terminals,
+        ))
+
         output_rew.append(rewards)
 
-    train_output_dict = {k: output_dict[k][:int(len(output_dict[k])*args.split)] for k in desired_keys}
-    val_output_dict = {k: output_dict[k][int(len(output_dict[k])*args.split):] for k in desired_keys}
+    
+    train_output_list = output_lists[:int(len(output_lists)*args.split)]
+    val_output_list = output_lists[int(len(output_lists)*args.split):]
     train_rew = output_rew[:int(len(output_rew)*args.split)]
     val_rew = output_rew[int(len(output_rew)*args.split):]
     
-    np.save(os.path.join(task_path, 'train', 'out.npy'), train_output_dict)
-    np.save(os.path.join(task_path, 'val', 'out.npy'), val_output_dict)
+    np.save(os.path.join(task_path, 'train', 'out.npy'), train_output_list)
+    np.save(os.path.join(task_path, 'val', 'out.npy'), val_output_list)
     np.save(os.path.join(task_path, 'train', 'out_rew.npy'), train_rew)
     np.save(os.path.join(task_path, 'val', 'out_rew.npy'), val_rew)
-
 
 print('Processing', len(tasks), 'tasks')
 
